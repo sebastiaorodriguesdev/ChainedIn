@@ -1,0 +1,135 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  type      String   @default("PERSON") // PERSON | COMPANY | ADMIN
+  bio       String?
+  logoUrl   String?
+  website   String?
+  createdAt DateTime @default(now())
+
+  software     Software[]
+  badges       BadgeRequest[]
+  stacks       Stack[]
+}
+
+// ─── SOFTWARE ─────────────────────────────────────────────────────────────────
+
+model Software {
+  id          String   @id @default(cuid())
+  ownerId     String
+  name        String
+  slug        String   @unique
+  description String?
+  ecosystem   String   @default("other") // npm | pip | maven | cargo | gem | nuget | go | other
+  repoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner    User              @relation(fields: [ownerId], references: [id])
+  versions SoftwareVersion[]
+}
+
+model SoftwareVersion {
+  id         String    @id @default(cuid())
+  softwareId String
+  version    String
+  releasedAt DateTime?
+  changelog  String?
+  createdAt  DateTime  @default(now())
+
+  software   Software   @relation(fields: [softwareId], references: [id], onDelete: Cascade)
+  cveCache   CveCache[]
+  stackNodes StackNode[]
+
+  @@unique([softwareId, version])
+}
+
+// ─── CVE CACHE ────────────────────────────────────────────────────────────────
+
+model CveCache {
+  id                String   @id @default(cuid())
+  softwareVersionId String
+  cveId             String
+  severity          String   @default("NONE") // CRITICAL | HIGH | MEDIUM | LOW | NONE
+  cvssScore         Float?
+  description       String
+  publishedAt       DateTime
+  modifiedAt        DateTime
+  cachedAt          DateTime @default(now())
+
+  softwareVersion SoftwareVersion @relation(fields: [softwareVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([softwareVersionId, cveId])
+  @@index([softwareVersionId])
+}
+
+// ─── COMPLIANCE BADGES ────────────────────────────────────────────────────────
+
+model BadgeRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  badgeType   String    // ISO27001 | NIS2 | SOC2 | GDPR | PCI_DSS
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  evidence    String?
+  adminNote   String?
+  requestedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+// ─── PRIVATE STACK BUILDER ────────────────────────────────────────────────────
+
+model Stack {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id])
+  nodes StackNode[]
+  edges StackEdge[]
+}
+
+model StackNode {
+  id                String   @id @default(cuid())
+  stackId           String
+  softwareVersionId String?
+  freeformName      String?
+  freeformVersion   String?
+  freeformEcosystem String?
+  positionX         Float    @default(0)
+  positionY         Float    @default(0)
+  createdAt         DateTime @default(now())
+
+  stack           Stack            @relation(fields: [stackId], references: [id], onDelete: Cascade)
+  softwareVersion SoftwareVersion? @relation(fields: [softwareVersionId], references: [id])
+  sourceEdges     StackEdge[]      @relation("EdgeSource")
+  targetEdges     StackEdge[]      @relation("EdgeTarget")
+}
+
+model StackEdge {
+  id       String @id @default(cuid())
+  stackId  String
+  sourceId String
+  targetId String
+
+  stack  Stack     @relation(fields: [stackId], references: [id], onDelete: Cascade)
+  source StackNode @relation("EdgeSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target StackNode @relation("EdgeTarget", fields: [targetId], references: [id], onDelete: Cascade)
+}
