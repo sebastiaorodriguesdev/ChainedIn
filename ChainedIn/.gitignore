@@ -25,5 +25,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Prisma
-prisma/*.db
-prisma/*.db-journal
+prisma/**/*.db
+prisma/**/*.db-journal
+*.db
+*.db-journal
