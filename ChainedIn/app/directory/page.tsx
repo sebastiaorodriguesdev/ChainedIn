@@ -3,6 +3,8 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { BADGE_LABELS, ECOSYSTEM_LABELS } from "@/lib/utils";
 import { Award, Building2, Package, User } from "lucide-react";
+import Fuse from "fuse.js";
+import { SearchBar } from "@/components/search-bar";
 
 export default async function DirectoryPage({
   searchParams,
@@ -12,12 +14,11 @@ export default async function DirectoryPage({
   const typeFilter = searchParams.type; // "company" | "person" | undefined
   const q = searchParams.q?.trim() ?? "";
 
-  const users = await prisma.user.findMany({
+  const allUsers = await prisma.user.findMany({
     where: {
       type: { not: "ADMIN" },
       ...(typeFilter === "company" && { type: "COMPANY" }),
       ...(typeFilter === "person"  && { type: "PERSON"  }),
-      ...(q && { name: { contains: q } }),
     },
     include: {
       software: { select: { id: true } },
@@ -25,6 +26,15 @@ export default async function DirectoryPage({
     },
     orderBy: [{ type: "asc" }, { name: "asc" }],
   });
+
+  // Apply fuzzy search if a query is present
+  const users = q
+    ? new Fuse(allUsers, {
+        keys: [{ name: "name", weight: 2 }, { name: "bio", weight: 0.5 }],
+        threshold: 0.45,
+        minMatchCharLength: 2,
+      }).search(q).map(r => r.item)
+    : allUsers;
 
   const tabs = [
     { label: "All",       value: undefined },
@@ -52,30 +62,14 @@ export default async function DirectoryPage({
 
       {/* Search + filter bar */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Search */}
-        <form method="GET" action="/directory" className="flex gap-2 flex-1 max-w-sm">
-          {typeFilter && <input type="hidden" name="type" value={typeFilter} />}
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Search by name…"
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-          <button
-            type="submit"
-            className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Search
-          </button>
-          {q && (
-            <Link
-              href={tabHref(typeFilter)}
-              className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-accent"
-            >
-              Clear
-            </Link>
-          )}
-        </form>
+        {/* Search with autocomplete */}
+        <SearchBar
+          scope="profiles"
+          searchAction="/directory"
+          extraParams={typeFilter ? { type: typeFilter } : {}}
+          placeholder="Search by name…"
+          className="max-w-sm"
+        />
 
         {/* Type tabs */}
         <div className="flex gap-1 rounded-lg border p-1 bg-muted/30 w-fit">

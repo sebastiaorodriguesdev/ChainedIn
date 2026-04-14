@@ -31,6 +31,7 @@ import Link from "next/link";
 interface CveData { severity: string; cvssScore: number | null }
 interface SoftwareVersion {
   id: string; version: string;
+  releasedAt: string | null;
   software: { name: string; slug: string; ecosystem: string };
   cveCache: CveData[];
 }
@@ -48,27 +49,35 @@ interface Stack {
 
 // ─── Custom Node ──────────────────────────────────────────────────────────────
 
+const UNSCANNED_THRESHOLD_MS = 45 * 24 * 60 * 60 * 1000;
+
 type NodeData = {
   label: string; version: string; ecosystem: string;
   cves: CveData[]; isLinked: boolean;
+  releasedAt: string | null;
   onDelete: (id: string) => void;
   nodeId: string;
 };
 
 function DepNode({ data, id }: NodeProps & { data: NodeData }) {
-  const worst = worstSeverity(data.cves.map(c => c.severity));
-  const borderColor = data.cves.length > 0 ? (SEVERITY_COLORS[worst] ?? "#888") : "#d1d5db";
+  const hasCves = data.cves.length > 0;
+  const isUnscanned = data.isLinked && !hasCves && data.releasedAt !== null &&
+    (Date.now() - new Date(data.releasedAt).getTime()) < UNSCANNED_THRESHOLD_MS;
+  const worst = hasCves
+    ? worstSeverity(data.cves.map(c => c.severity))
+    : isUnscanned ? "UNSCANNED" : "NONE";
+  const color = SEVERITY_COLORS[worst] ?? SEVERITY_COLORS.NONE;
 
   return (
     <div
-      className="rounded-lg bg-white shadow-md border-2 p-3 min-w-[180px] max-w-[220px]"
-      style={{ borderColor }}
+      className="rounded-lg shadow-md border-2 p-3 min-w-[180px] max-w-[220px]"
+      style={{ borderColor: color, backgroundColor: color + "0d" }}
     >
       <Handle type="target" position={Position.Top} className="w-2 h-2" />
       <div className="flex items-start justify-between gap-1 mb-1">
         <div className="flex items-center gap-1.5 min-w-0">
           {data.isLinked ? (
-            <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <Package className="h-3.5 w-3.5 shrink-0" style={{ color }} />
           ) : (
             <AlertTriangle className="h-3.5 w-3.5 text-yellow-500 shrink-0" />
           )}
@@ -85,10 +94,12 @@ function DepNode({ data, id }: NodeProps & { data: NodeData }) {
         <span className="font-mono text-xs text-muted-foreground">{data.version}</span>
         <span className="text-xs bg-muted px-1 rounded">{ECOSYSTEM_LABELS[data.ecosystem] ?? data.ecosystem}</span>
       </div>
-      {data.cves.length > 0 ? (
+      {hasCves ? (
         <SeverityRow cves={data.cves} />
       ) : (
-        <span className="text-xs text-muted-foreground">{data.isLinked ? "No CVE data" : "Unknown package"}</span>
+        <span className="text-xs font-medium" style={{ color }}>
+          {!data.isLinked ? "Unknown package" : isUnscanned ? "Scan pending" : "Clean ✓"}
+        </span>
       )}
       <Handle type="source" position={Position.Bottom} className="w-2 h-2" />
     </div>
@@ -114,6 +125,7 @@ export function StackCanvas({ stack }: { stack: Stack }) {
         ecosystem: sv ? sv.software.ecosystem : raw.freeformEcosystem ?? "other",
         cves: sv ? sv.cveCache : [],
         isLinked: !!sv,
+        releasedAt: sv?.releasedAt ?? null,
         onDelete,
         nodeId: raw.id,
       },
@@ -122,7 +134,6 @@ export function StackCanvas({ stack }: { stack: Stack }) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const [showAddPanel, setShowAddPanel] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [ecoFilter, setEcoFilter] = useState("");
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; slug: string; ecosystem: string; versions: SoftwareVersion[] }>>([]);
@@ -199,18 +210,11 @@ export function StackCanvas({ stack }: { stack: Stack }) {
     return () => { if (searchDebounce.current) clearTimeout(searchDebounce.current); };
   }, [searchQ, ecoFilter, addTab, fetchSoftware]);
 
-  // Load all packages when search tab opens; reset filters when panel closes
+  // Load all packages on first render and when tab/filters change
   useEffect(() => {
-    if (showAddPanel && addTab === "search") {
-      fetchSoftware(searchQ, ecoFilter);
-    }
-    if (!showAddPanel) {
-      setSearchQ("");
-      setEcoFilter("");
-      setExpandedPkg(null);
-    }
+    if (addTab === "search") fetchSoftware(searchQ, ecoFilter);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAddPanel, addTab]);
+  }, [addTab]);
 
   async function addLinkedNode(softwareVersionId: string, version: SoftwareVersion) {
     const pos = { positionX: 100 + nodes.length * 30, positionY: 100 + nodes.length * 30 };
@@ -222,8 +226,6 @@ export function StackCanvas({ stack }: { stack: Stack }) {
     if (res.ok) {
       const node = await res.json();
       setNodes(prev => [...prev, toFlowNode(node, handleDelete)]);
-      setExpandedPkg(null);
-      setShowAddPanel(false);
     }
   }
 
@@ -239,7 +241,6 @@ export function StackCanvas({ stack }: { stack: Stack }) {
       const node = await res.json();
       setNodes(prev => [...prev, toFlowNode(node, handleDelete)]);
       setFreeform({ name: "", version: "", ecosystem: "npm" });
-      setShowAddPanel(false);
     }
   }
 
@@ -281,18 +282,16 @@ export function StackCanvas({ stack }: { stack: Stack }) {
             </>
           )}
         </div>
-        <Button size="sm" onClick={() => setShowAddPanel(v => !v)}>
-          <Plus className="h-4 w-4 mr-1" />Add node
-        </Button>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Add node panel */}
-        {showAddPanel && (
-          <div className="w-72 border-r bg-background overflow-y-auto p-4 shrink-0">
+        {/* React Flow canvas — left, takes remaining space */}
+        {/* (rendered below so panel DOM order is right-side) */}
+
+        {/* Add dependency panel — always open, right side */}
+        <div className="w-72 border-l bg-background overflow-y-auto p-4 shrink-0 order-last">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold">Add dependency</h3>
-              <button onClick={() => setShowAddPanel(false)}><X className="h-4 w-4" /></button>
             </div>
 
             <div className="flex gap-1 mb-4">
@@ -393,21 +392,25 @@ export function StackCanvas({ stack }: { stack: Stack }) {
                               <p className="text-xs text-muted-foreground px-3 py-2">No versions published yet.</p>
                             )}
                             {pkg.versions.map((v: SoftwareVersion) => {
-                              const worst = worstSeverity(v.cveCache.map(c => c.severity));
+                              const hasCves = v.cveCache.length > 0;
+                              const isUnscanned = !hasCves && v.releasedAt !== null &&
+                                (Date.now() - new Date(v.releasedAt).getTime()) < UNSCANNED_THRESHOLD_MS;
+                              const worst = hasCves ? worstSeverity(v.cveCache.map(c => c.severity)) : isUnscanned ? "UNSCANNED" : "NONE";
+                              const color = SEVERITY_COLORS[worst];
                               return (
                                 <button
                                   key={v.id}
                                   onClick={() => addLinkedNode(v.id, v)}
-                                  className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-accent text-xs border-b last:border-b-0"
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-accent text-xs border-b last:border-b-0 group"
                                 >
-                                  <span className="font-mono">{v.version}</span>
-                                  {v.cveCache.length > 0 ? (
-                                    <span className="font-semibold" style={{ color: SEVERITY_COLORS[worst] }}>
-                                      {v.cveCache.length} CVE
-                                    </span>
-                                  ) : (
-                                    <span className="text-green-600">Clean</span>
-                                  )}
+                                  {/* + icon */}
+                                  <span className="shrink-0 h-4 w-4 rounded-full border border-dashed border-muted-foreground flex items-center justify-center group-hover:border-primary group-hover:text-primary transition-colors">
+                                    <Plus className="h-2.5 w-2.5" />
+                                  </span>
+                                  <span className="font-mono flex-1 text-left">{v.version}</span>
+                                  <span className="font-semibold shrink-0" style={{ color }}>
+                                    {hasCves ? `${v.cveCache.length} CVE` : isUnscanned ? "Pending" : "Clean ✓"}
+                                  </span>
                                 </button>
                               );
                             })}
@@ -445,8 +448,7 @@ export function StackCanvas({ stack }: { stack: Stack }) {
                 </Button>
               </div>
             )}
-          </div>
-        )}
+        </div>
 
         {/* React Flow canvas */}
         <div className="flex-1">
@@ -466,13 +468,44 @@ export function StackCanvas({ stack }: { stack: Stack }) {
             <Controls />
             <MiniMap nodeColor={(n) => {
               const d = n.data as NodeData;
-              const w = worstSeverity((d.cves as CveData[]).map(c => c.severity));
-              return d.cves.length > 0 ? (SEVERITY_COLORS[w] ?? "#888") : "#d1d5db";
+              if ((d.cves as CveData[]).length > 0) {
+                const w = worstSeverity((d.cves as CveData[]).map(c => c.severity));
+                return SEVERITY_COLORS[w] ?? SEVERITY_COLORS.NONE;
+              }
+              const unscanned = d.isLinked && d.releasedAt !== null &&
+                (Date.now() - new Date(d.releasedAt as string).getTime()) < UNSCANNED_THRESHOLD_MS;
+              return unscanned ? SEVERITY_COLORS.UNSCANNED : SEVERITY_COLORS.NONE;
             }} />
+
+            {/* Legend — always visible bottom-left */}
+            <Panel position="bottom-left">
+              <div className="bg-background/90 backdrop-blur rounded-lg border shadow-sm px-3 py-2 text-xs">
+                <p className="font-semibold text-muted-foreground mb-1.5">Node status</p>
+                <div className="flex flex-col gap-1">
+                  {[
+                    { key: "NONE",      label: "Clean"        },
+                    { key: "LOW",       label: "Low risk"     },
+                    { key: "MEDIUM",    label: "Medium risk"  },
+                    { key: "HIGH",      label: "High risk"    },
+                    { key: "CRITICAL",  label: "Critical"     },
+                    { key: "UNSCANNED", label: "Scan pending" },
+                  ].map(({ key, label }) => (
+                    <span key={key} className="flex items-center gap-1.5">
+                      <span
+                        className="inline-block h-3 w-3 rounded-sm border-2 shrink-0"
+                        style={{ borderColor: SEVERITY_COLORS[key], backgroundColor: SEVERITY_COLORS[key] + "22" }}
+                      />
+                      <span className="text-muted-foreground">{label}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Panel>
+
             {nodes.length === 0 && (
               <Panel position="top-center">
                 <div className="bg-background/80 rounded-lg border p-4 text-sm text-muted-foreground text-center">
-                  Click <strong>Add node</strong> to start building your stack.
+                  Pick a package from the panel on the right to get started.
                   <br />
                   Connect nodes by dragging between handles. Double-click an edge to delete it.
                 </div>

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { BADGE_LABELS } from "@/lib/utils";
 import { Award, Building2, Package, Search, User } from "lucide-react";
+import Fuse from "fuse.js";
 
 export default async function SearchPage({
   searchParams,
@@ -37,27 +38,16 @@ export default async function SearchPage({
     );
   }
 
-  const [users, software] = await Promise.all([
+  // Fetch full corpus, then rank with Fuse for typo-tolerance
+  const [allUsers, allSoftware] = await Promise.all([
     prisma.user.findMany({
-      where: {
-        type: { not: "ADMIN" },
-        name: { contains: q },
-      },
+      where: { type: { not: "ADMIN" } },
       include: {
         software: { select: { id: true } },
         badges: { where: { status: "APPROVED" } },
       },
-      orderBy: [{ type: "asc" }, { name: "asc" }],
-      take: 12,
     }),
     prisma.software.findMany({
-      where: {
-        OR: [
-          { name: { contains: q } },
-          { slug: { contains: q } },
-          { description: { contains: q } },
-        ],
-      },
       include: {
         owner: { select: { id: true, name: true, logoUrl: true, type: true } },
         versions: {
@@ -67,9 +57,25 @@ export default async function SearchPage({
         },
       },
       orderBy: { name: "asc" },
-      take: 12,
     }),
   ]);
+
+  // Run Fuse fuzzy matching on the full corpus
+  const userFuse = new Fuse(allUsers, {
+    keys: [{ name: "name", weight: 2 }, { name: "bio", weight: 0.5 }],
+    threshold: 0.45,
+    includeScore: true,
+    minMatchCharLength: 2,
+  });
+  const softwareFuse = new Fuse(allSoftware, {
+    keys: [{ name: "name", weight: 2 }, { name: "slug", weight: 1.5 }, { name: "description", weight: 0.5 }],
+    threshold: 0.4,
+    includeScore: true,
+    minMatchCharLength: 2,
+  });
+
+  const users = userFuse.search(q, { limit: 12 }).map(r => r.item);
+  const software = softwareFuse.search(q, { limit: 12 }).map(r => r.item);
 
   const total = users.length + software.length;
 

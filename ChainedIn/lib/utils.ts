@@ -14,19 +14,21 @@ export function slugify(text: string): string {
 }
 
 export const SEVERITY_COLORS: Record<string, string> = {
-  CRITICAL: "#dc2626",
-  HIGH: "#ea580c",
-  MEDIUM: "#ca8a04",
-  LOW: "#2563eb",
-  NONE: "#16a34a",
+  CRITICAL:   "#dc2626",  // red
+  HIGH:       "#ea580c",  // orange
+  MEDIUM:     "#ca8a04",  // amber
+  LOW:        "#65a30d",  // yellow-green
+  NONE:       "#16a34a",  // green
+  UNSCANNED:  "#2563eb",  // blue — newly released, not yet scanned
 };
 
 export const SEVERITY_BG: Record<string, string> = {
-  CRITICAL: "bg-red-100 text-red-800 border-red-200",
-  HIGH: "bg-orange-100 text-orange-800 border-orange-200",
-  MEDIUM: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  LOW: "bg-blue-100 text-blue-800 border-blue-200",
-  NONE: "bg-green-100 text-green-800 border-green-200",
+  CRITICAL:  "bg-red-100 text-red-800 border-red-200",
+  HIGH:      "bg-orange-100 text-orange-800 border-orange-200",
+  MEDIUM:    "bg-yellow-100 text-yellow-800 border-yellow-200",
+  LOW:       "bg-lime-100 text-lime-800 border-lime-200",
+  NONE:      "bg-green-100 text-green-800 border-green-200",
+  UNSCANNED: "bg-blue-100 text-blue-800 border-blue-200",
 };
 
 export const BADGE_LABELS: Record<string, string> = {

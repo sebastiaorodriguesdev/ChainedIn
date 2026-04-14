@@ -248,6 +248,10 @@ export const SOFTWARE: SeedSoftware[] = [
         version: "2.0.0", releasedAt: "2024-01-05", changelog: "Complete TypeScript rewrite. All known CVEs resolved. Dropped legacy mergeObjects.",
         cves: [],
       },
+      {
+        version: "2.1.0", releasedAt: "2026-04-01", changelog: "New plugin API and performance improvements. CVE scan in progress.",
+        cves: [],
+      },
     ],
   },
 
@@ -267,6 +271,10 @@ export const SOFTWARE: SeedSoftware[] = [
       },
       {
         version: "1.0.0", releasedAt: "2023-09-01", changelog: "Stable release. Sanitized all log injection vectors. Redacted env vars from stack traces.",
+        cves: [],
+      },
+      {
+        version: "1.1.0", releasedAt: "2026-03-28", changelog: "Added OpenTelemetry trace context injection. Released last week, CVE scan pending.",
         cves: [],
       },
     ],
@@ -329,6 +337,10 @@ export const SOFTWARE: SeedSoftware[] = [
       },
       {
         version: "1.1.0", releasedAt: "2024-04-01", changelog: "Patched CVE-2023-5528. Upgraded to Go 1.22. No known CVEs.",
+        cves: [],
+      },
+      {
+        version: "1.2.0", releasedAt: "2026-04-08", changelog: "Added CRD validation webhooks and leader election. Just shipped — scan queued.",
         cves: [],
       },
     ],
@@ -439,6 +451,10 @@ export const SOFTWARE: SeedSoftware[] = [
       },
       {
         version: "1.0.1", releasedAt: "2024-01-30", changelog: "Patched socket permission check. Now sets restrictive umask before bind.",
+        cves: [],
+      },
+      {
+        version: "1.1.0", releasedAt: "2026-04-10", changelog: "Added mTLS support and AWS Secrets Manager backend. Brand new — CVE scan not yet run.",
         cves: [],
       },
     ],

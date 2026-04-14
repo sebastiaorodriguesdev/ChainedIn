@@ -1,11 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { ECOSYSTEM_LABELS, BADGE_LABELS, formatDate } from "@/lib/utils";
+import { ECOSYSTEM_LABELS, BADGE_LABELS, SEVERITY_COLORS, formatDate } from "@/lib/utils";
 import { SeverityRow } from "@/components/severity-badge";
-import { CveStackedBar, CveTimeline } from "@/components/cve-charts";
 import { Award, ExternalLink, Package, User } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default async function SoftwareDetailPage({ params }: { params: { slug: string } }) {
   const pkg = await prisma.software.findUnique({
@@ -25,19 +24,6 @@ export default async function SoftwareDetailPage({ params }: { params: { slug: s
 
   const approvedBadges = pkg.owner.badges.filter((b) => b.status === "APPROVED");
 
-  const allCves = pkg.versions.flatMap((v) =>
-    v.cveCache.map((c) => ({ ...c, version: v.version }))
-  );
-
-  const chartData = pkg.versions.map((v) => ({
-    version: v.version,
-    cves: v.cveCache.map((c) => ({
-      cveId: c.cveId,
-      severity: c.severity,
-      cvssScore: c.cvssScore,
-      publishedAt: c.publishedAt.toISOString(),
-    })),
-  }));
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -67,28 +53,6 @@ export default async function SoftwareDetailPage({ params }: { params: { slug: s
           </div>
         </div>
       </div>
-
-      {/* CVE Charts */}
-      {pkg.versions.length > 0 && (
-        <div className="mb-8 grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Vulnerability distribution by version</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CveStackedBar data={chartData} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">CVE timeline (all versions)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CveTimeline allCves={allCves.map(c => ({ ...c, publishedAt: c.publishedAt.toISOString() }))} />
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
       {/* Version list */}
       <div className="space-y-3">
@@ -131,11 +95,20 @@ export default async function SoftwareDetailPage({ params }: { params: { slug: s
                       </details>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground shrink-0">
-                    {v.cveCache.length === 0 ? (
-                      <span className="text-muted-foreground">No CVE data</span>
-                    ) : null}
-                  </div>
+                  {v.cveCache.length === 0 && (() => {
+                    const isUnscanned = v.releasedAt !== null &&
+                      (Date.now() - new Date(v.releasedAt).getTime()) < 45 * 24 * 60 * 60 * 1000;
+                    return (
+                      <span
+                        className="text-xs font-medium shrink-0 px-2 py-0.5 rounded-full border"
+                        style={isUnscanned
+                          ? { color: SEVERITY_COLORS.UNSCANNED, borderColor: SEVERITY_COLORS.UNSCANNED, backgroundColor: SEVERITY_COLORS.UNSCANNED + "18" }
+                          : { color: SEVERITY_COLORS.NONE, borderColor: SEVERITY_COLORS.NONE, backgroundColor: SEVERITY_COLORS.NONE + "18" }}
+                      >
+                        {isUnscanned ? "Scan pending" : "Clean ✓"}
+                      </span>
+                    );
+                  })()}
                 </div>
               </CardContent>
             </Card>
