@@ -1,0 +1,25 @@
+# Next.js
+ChainedIn/.next/
+ChainedIn/out/
+
+# Node modules
+ChainedIn/node_modules/
+
+# Build output
+ChainedIn/build/
+
+# Environment variables
+ChainedIn/.env
+ChainedIn/.env.local
+ChainedIn/.env.development.local
+ChainedIn/.env.test.local
+ChainedIn/.env.production.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

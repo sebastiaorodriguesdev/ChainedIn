@@ -1,0 +1,187 @@
+import Link from "next/link";
+import Image from "next/image";
+import { prisma } from "@/lib/prisma";
+import { BADGE_LABELS, ECOSYSTEM_LABELS } from "@/lib/utils";
+import { Award, Building2, Package, User } from "lucide-react";
+import Fuse from "fuse.js";
+import { SearchBar } from "@/components/search-bar";
+
+export default async function DirectoryPage({
+  searchParams,
+}: {
+  searchParams: { type?: string; q?: string };
+}) {
+  const typeFilter = searchParams.type; // "company" | "person" | undefined
+  const q = searchParams.q?.trim() ?? "";
+
+  const allUsers = await prisma.user.findMany({
+    where: {
+      type: { not: "ADMIN" },
+      ...(typeFilter === "company" && { type: "COMPANY" }),
+      ...(typeFilter === "person"  && { type: "PERSON"  }),
+    },
+    include: {
+      software: { select: { id: true } },
+      badges: { where: { status: "APPROVED" } },
+    },
+    orderBy: [{ type: "asc" }, { name: "asc" }],
+  });
+
+  // Apply fuzzy search if a query is present
+  const users = q
+    ? new Fuse(allUsers, {
+        keys: [{ name: "name", weight: 2 }, { name: "bio", weight: 0.5 }],
+        threshold: 0.45,
+        minMatchCharLength: 2,
+      }).search(q).map(r => r.item)
+    : allUsers;
+
+  const tabs = [
+    { label: "All",       value: undefined },
+    { label: "Companies", value: "company" },
+    { label: "People",    value: "person"  },
+  ];
+
+  function tabHref(value?: string) {
+    const params = new URLSearchParams();
+    if (value) params.set("type", value);
+    if (q)     params.set("q", q);
+    const s = params.toString();
+    return `/directory${s ? `?${s}` : ""}`;
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8 max-w-5xl">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-1">Directory</h1>
+        <p className="text-muted-foreground">
+          Browse companies and individuals on ChainedIn
+        </p>
+      </div>
+
+      {/* Search + filter bar */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Search with autocomplete */}
+        <SearchBar
+          scope="profiles"
+          searchAction="/directory"
+          extraParams={typeFilter ? { type: typeFilter } : {}}
+          placeholder="Search by name…"
+          className="max-w-sm"
+        />
+
+        {/* Type tabs */}
+        <div className="flex gap-1 rounded-lg border p-1 bg-muted/30 w-fit">
+          {tabs.map((tab) => {
+            const active = (tab.value ?? "") === (typeFilter ?? "");
+            return (
+              <Link
+                key={tab.label}
+                href={tabHref(tab.value)}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Results count */}
+      <p className="text-sm text-muted-foreground mb-4">
+        {users.length} profile{users.length !== 1 ? "s" : ""}
+        {q && <> matching <strong>"{q}"</strong></>}
+      </p>
+
+      {/* Grid */}
+      {users.length === 0 ? (
+        <div className="py-16 text-center text-muted-foreground">
+          No profiles found.
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {users.map((user) => {
+            const isCompany = user.type === "COMPANY";
+            return (
+              <Link
+                key={user.id}
+                href={`/profile/${user.id}`}
+                className="group rounded-lg border bg-card p-5 hover:shadow-md transition-shadow"
+              >
+                {/* Avatar + name */}
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="shrink-0">
+                    {user.logoUrl ? (
+                      <Image
+                        src={user.logoUrl}
+                        alt={user.name}
+                        width={44}
+                        height={44}
+                        className="rounded-full object-cover border"
+                      />
+                    ) : (
+                      <div className="h-11 w-11 rounded-full bg-muted flex items-center justify-center border">
+                        {isCompany
+                          ? <Building2 className="h-5 w-5 text-muted-foreground" />
+                          : <User className="h-5 w-5 text-muted-foreground" />}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate group-hover:underline">
+                      {user.name}
+                    </p>
+                    <span className={`inline-block text-xs px-1.5 py-0.5 rounded mt-0.5 ${
+                      isCompany
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-purple-50 text-purple-700"
+                    }`}>
+                      {isCompany ? "Company" : "Individual"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Bio */}
+                {user.bio && (
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                    {user.bio}
+                  </p>
+                )}
+
+                {/* Footer: software count + badges */}
+                <div className="flex items-center justify-between gap-2 mt-auto">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Package className="h-3.5 w-3.5" />
+                    {user.software.length} package{user.software.length !== 1 ? "s" : ""}
+                  </span>
+                  {user.badges.length > 0 && (
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      {user.badges.slice(0, 3).map((b) => (
+                        <span
+                          key={b.id}
+                          className="inline-flex items-center gap-0.5 rounded-full border border-green-200 bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700"
+                          title={BADGE_LABELS[b.badgeType]}
+                        >
+                          <Award className="h-3 w-3" />
+                          {BADGE_LABELS[b.badgeType] ?? b.badgeType}
+                        </span>
+                      ))}
+                      {user.badges.length > 3 && (
+                        <span className="text-xs text-muted-foreground">+{user.badges.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
