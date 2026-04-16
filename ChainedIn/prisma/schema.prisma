@@ -18,18 +18,20 @@ model User {
   bio       String?
   logoUrl   String?
   website   String?
+  apiKey    String?  @unique
   createdAt DateTime @default(now())
 
   software     Software[]
   badges       BadgeRequest[]
   stacks       Stack[]
+  scanReports  ScanReport[]
 }
 
 // ─── SOFTWARE ─────────────────────────────────────────────────────────────────
 
 model Software {
   id          String   @id @default(cuid())
-  ownerId     String
+  ownerId     String?  // null = community package (auto-discovered by scanner, no vendor yet)
   name        String
   slug        String   @unique
   description String?
@@ -38,7 +40,7 @@ model Software {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owner    User              @relation(fields: [ownerId], references: [id])
+  owner    User?             @relation(fields: [ownerId], references: [id])
   versions SoftwareVersion[]
 }
 
@@ -101,9 +103,10 @@ model Stack {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user  User        @relation(fields: [userId], references: [id])
-  nodes StackNode[]
-  edges StackEdge[]
+  user        User         @relation(fields: [userId], references: [id])
+  nodes       StackNode[]
+  edges       StackEdge[]
+  scanReports ScanReport[]
 }
 
 model StackNode {
@@ -132,4 +135,26 @@ model StackEdge {
   stack  Stack     @relation(fields: [stackId], references: [id], onDelete: Cascade)
   source StackNode @relation("EdgeSource", fields: [sourceId], references: [id], onDelete: Cascade)
   target StackNode @relation("EdgeTarget", fields: [targetId], references: [id], onDelete: Cascade)
+}
+
+// ─── SCAN REPORTS ─────────────────────────────────────────────────────────────
+
+model ScanReport {
+  id               String   @id @default(cuid())
+  userId           String
+  projectName      String
+  scannedAt        DateTime @default(now())
+  totalDeps        Int
+  vulnerableDeps   Int
+  totalAdvisories  Int
+  ecosystems       String   // JSON-encoded string[]
+  scanDurationSecs Float
+  riskLevel        String   // CRITICAL | HIGH | MEDIUM | LOW | CLEAN
+  findingsJson     String   // Full findings JSON blob
+  stackId          String?  // Auto-created stack for this scan
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stack Stack? @relation(fields: [stackId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
 }

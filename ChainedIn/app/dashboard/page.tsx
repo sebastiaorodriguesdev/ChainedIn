@@ -7,29 +7,42 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { SeverityRow } from "@/components/severity-badge";
 import { BADGE_LABELS, ECOSYSTEM_LABELS, formatDate } from "@/lib/utils";
-import { Package, GitBranch, Award, Plus, ExternalLink } from "lucide-react";
+import { computeTrustScore } from "@/lib/trust-score";
+import { getPlainSummary, getRiskLevelLabel } from "@/lib/scan-plain-language";
+import { Package, GitBranch, Award, Plus, ExternalLink, ScanLine, ChevronRight, ShieldCheck } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const user = await prisma.user.findUniqueOrThrow({
-    where: { id: session.user.id },
-    include: {
-      software: {
-        include: {
-          versions: {
-            include: { cveCache: true },
-            orderBy: { createdAt: "desc" },
-            take: 3,
+  const [user, recentScans] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: session.user.id },
+      include: {
+        software: {
+          include: {
+            versions: {
+              include: { cveCache: true },
+              orderBy: { createdAt: "desc" },
+              take: 3,
+            },
           },
+          orderBy: { createdAt: "desc" },
         },
-        orderBy: { createdAt: "desc" },
+        stacks: { orderBy: { updatedAt: "desc" }, take: 5 },
+        badges: { orderBy: { requestedAt: "desc" } },
       },
-      stacks: { orderBy: { updatedAt: "desc" }, take: 5 },
-      badges: { orderBy: { requestedAt: "desc" } },
-    },
-  });
+    }),
+    prisma.$queryRaw<Array<{ id: string; projectName: string; scannedAt: Date; riskLevel: string; vulnerableDeps: number; totalAdvisories: number; totalDeps: number; stackId: string | null }>>`
+      SELECT id, "projectName", "scannedAt", "riskLevel", "vulnerableDeps", "totalAdvisories", "totalDeps", "stackId"
+      FROM   "ScanReport"
+      WHERE  "userId" = ${session.user.id}
+      ORDER  BY "scannedAt" DESC
+      LIMIT  3
+    `,
+  ]);
+
+  const trustScore = computeTrustScore(user);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -47,6 +60,25 @@ export default async function DashboardPage() {
                 </Link>
               </p>
             </div>
+            {trustScore && (
+              <div
+                className="flex items-center gap-3 rounded-lg border px-4 py-3"
+                style={{ borderColor: trustScore.color, backgroundColor: trustScore.color + "12" }}
+              >
+                <ShieldCheck className="h-6 w-6" style={{ color: trustScore.color }} />
+                <div className="text-right">
+                  <div className="flex items-baseline gap-1 justify-end">
+                    <span className="text-3xl font-bold" style={{ color: trustScore.color }}>
+                      {trustScore.score}
+                    </span>
+                    <span className="text-sm text-muted-foreground">/ 100</span>
+                  </div>
+                  <p className="text-xs font-medium" style={{ color: trustScore.color }}>
+                    {trustScore.grade} vendor score
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Software */}
@@ -144,6 +176,66 @@ export default async function DashboardPage() {
                     </Card>
                   </Link>
                 ))}
+              </div>
+            )}
+          </section>
+
+          {/* Security Scans */}
+          <section>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <ScanLine className="h-5 w-5" /> Security scans
+              </h2>
+              <Link href="/scans">
+                <Button size="sm" variant="outline">View all scans</Button>
+              </Link>
+            </div>
+            {recentScans.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  <ScanLine className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">No scans yet. Run the scanner on your project.</p>
+                  <Link href="/settings" className="mt-2 inline-block">
+                    <Button variant="outline" size="sm">Get your API key</Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {recentScans.map((report) => {
+                  const plain = getPlainSummary(report.riskLevel, report.vulnerableDeps, report.totalAdvisories);
+                  const cleanName = report.projectName.replace(/^.*[\\/]/, "");
+                  return (
+                    <Card key={report.id} className="relative hover:bg-muted/30 transition-colors">
+                      <Link href={`/scans/${report.id}`} className="absolute inset-0 rounded-[inherit]" aria-label={`View scan for ${cleanName}`} />
+                      <CardContent className="py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${plain.statusDot}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{cleanName}</span>
+                              <span className={`text-xs rounded-full border px-2 py-0.5 font-semibold ${plain.statusBg} ${plain.statusColor}`}>
+                                {getRiskLevelLabel(report.riskLevel)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{formatDate(report.scannedAt)}</p>
+                          </div>
+                          <div className="relative z-10 flex items-center gap-1 shrink-0">
+                            {report.stackId && (
+                              <Link href={`/stacks/${report.stackId}`}>
+                                <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2">
+                                  <GitBranch className="h-3 w-3" />
+                                  Map
+                                </Button>
+                              </Link>
+                            )}
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </section>

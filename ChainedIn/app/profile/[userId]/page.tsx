@@ -3,7 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { BADGE_LABELS, ECOSYSTEM_LABELS, SEVERITY_COLORS, formatDate, worstSeverity } from "@/lib/utils";
-import { Award, Building2, User, ExternalLink, Package } from "lucide-react";
+import { computeTrustScore } from "@/lib/trust-score";
+import { Award, Building2, User, ExternalLink, Package, ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function ProfilePage({ params }: { params: { userId: string } }) {
@@ -30,6 +31,7 @@ export default async function ProfilePage({ params }: { params: { userId: string
   if (!user) notFound();
 
   const isCompany = user.type === "COMPANY";
+  const trustScore = computeTrustScore(user);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -67,6 +69,32 @@ export default async function ProfilePage({ params }: { params: { userId: string
             )}
             <span>Member since {formatDate(user.createdAt)}</span>
           </div>
+
+          {/* Vendor score */}
+          {trustScore && (
+            <div className="mt-4 flex items-center gap-3">
+              <div
+                className="flex items-center gap-2 rounded-lg border px-4 py-2"
+                style={{ borderColor: trustScore.color, backgroundColor: trustScore.color + "12" }}
+              >
+                <ShieldCheck className="h-5 w-5" style={{ color: trustScore.color }} />
+                <div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-bold" style={{ color: trustScore.color }}>
+                      {trustScore.score}
+                    </span>
+                    <span className="text-sm text-muted-foreground">/ 100</span>
+                  </div>
+                  <p className="text-xs font-medium" style={{ color: trustScore.color }}>
+                    {trustScore.grade} vendor score
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                Based on CVE severity across all published software versions.
+              </p>
+            </div>
+          )}
 
           {/* Approved badges */}
           {user.badges.length > 0 && (

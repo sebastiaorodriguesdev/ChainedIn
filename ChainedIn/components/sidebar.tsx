@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { LayoutDashboard, Package, GitBranch, Award, Settings, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Package, GitBranch, Award, Settings, ShieldCheck, ScanLine, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/software/new", label: "Add Software", icon: Package },
   { href: "/stacks", label: "My Stacks", icon: GitBranch },
+  { href: "/scans", label: "Security Scans", icon: ScanLine },
+  { href: "/vendors", label: "Vendor Scores", icon: Trophy },
   { href: "/badges", label: "Badges", icon: Award },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

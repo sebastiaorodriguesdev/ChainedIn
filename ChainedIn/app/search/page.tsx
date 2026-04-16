@@ -38,8 +38,15 @@ export default async function SearchPage({
     );
   }
 
-  // Fetch full corpus, then rank with Fuse for typo-tolerance
-  const [allUsers, allSoftware] = await Promise.all([
+  // Fetch full corpus, then rank with Fuse for typo-tolerance.
+  // Software uses raw SQL — stale Prisma client rejects NULL ownerId during deserialization.
+  type SoftwareRow = {
+    id: string; ownerId: string | null; name: string; slug: string;
+    description: string | null; ecosystem: string; repoUrl: string | null;
+  };
+  type VersionSummary = { softwareId: string; version: string };
+
+  const [allUsers, rawSoftware, latestVersionRows] = await Promise.all([
     prisma.user.findMany({
       where: { type: { not: "ADMIN" } },
       include: {
@@ -47,18 +54,36 @@ export default async function SearchPage({
         badges: { where: { status: "APPROVED" } },
       },
     }),
-    prisma.software.findMany({
-      include: {
-        owner: { select: { id: true, name: true, logoUrl: true, type: true } },
-        versions: {
-          orderBy: { releasedAt: "desc" },
-          take: 1,
-          select: { version: true },
-        },
-      },
-      orderBy: { name: "asc" },
-    }),
+    prisma.$queryRaw<SoftwareRow[]>`
+      SELECT id, "ownerId", name, slug, description, ecosystem, "repoUrl"
+      FROM   "Software"
+      ORDER  BY name ASC
+    `,
+    prisma.$queryRaw<VersionSummary[]>`
+      SELECT sv."softwareId", sv.version
+      FROM   "SoftwareVersion" sv
+      INNER JOIN (
+        SELECT "softwareId", MAX("createdAt") AS maxc FROM "SoftwareVersion" GROUP BY "softwareId"
+      ) latest ON sv."softwareId" = latest."softwareId" AND sv."createdAt" = latest.maxc
+    `,
   ]);
+
+  // Fetch owners for claimed packages.
+  const ownerIds = Array.from(new Set(rawSoftware.map((s) => s.ownerId).filter(Boolean))) as string[];
+  const ownerRows = ownerIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: ownerIds } },
+        select: { id: true, name: true, logoUrl: true, type: true },
+      })
+    : [];
+  const ownerMap = new Map(ownerRows.map((o) => [o.id, o]));
+  const latestVersionMap = new Map(latestVersionRows.map((v) => [v.softwareId, v.version]));
+
+  const allSoftware = rawSoftware.map((s) => ({
+    ...s,
+    owner: s.ownerId ? (ownerMap.get(s.ownerId) ?? null) : null,
+    versions: latestVersionMap.has(s.id) ? [{ version: latestVersionMap.get(s.id)! }] : [],
+  }));
 
   // Run Fuse fuzzy matching on the full corpus
   const userFuse = new Fuse(allUsers, {
@@ -217,22 +242,28 @@ export default async function SearchPage({
                   </p>
                 )}
                 <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  {pkg.owner.logoUrl ? (
-                    <Image
-                      src={pkg.owner.logoUrl}
-                      alt={pkg.owner.name}
-                      width={16}
-                      height={16}
-                      className="rounded-full border"
-                    />
+                  {pkg.owner ? (
+                    <>
+                      {pkg.owner.logoUrl ? (
+                        <Image
+                          src={pkg.owner.logoUrl}
+                          alt={pkg.owner.name}
+                          width={16}
+                          height={16}
+                          className="rounded-full border"
+                        />
+                      ) : (
+                        <div className="h-4 w-4 rounded-full bg-muted border flex items-center justify-center">
+                          {pkg.owner.type === "COMPANY"
+                            ? <Building2 className="h-2.5 w-2.5" />
+                            : <User className="h-2.5 w-2.5" />}
+                        </div>
+                      )}
+                      {pkg.owner.name}
+                    </>
                   ) : (
-                    <div className="h-4 w-4 rounded-full bg-muted border flex items-center justify-center">
-                      {pkg.owner.type === "COMPANY"
-                        ? <Building2 className="h-2.5 w-2.5" />
-                        : <User className="h-2.5 w-2.5" />}
-                    </div>
+                    <span className="italic">Community package</span>
                   )}
-                  {pkg.owner.name}
                 </div>
               </Link>
             ))}

@@ -9,7 +9,11 @@ export async function DELETE(
   const { session, error } = await requireSession();
   if (error) return error;
 
-  const pkg = await prisma.software.findUnique({ where: { slug: params.slug } });
+  // Raw SQL — stale Prisma client rejects NULL ownerId during deserialization.
+  const rows = await prisma.$queryRaw<Array<{ id: string; ownerId: string | null }>>`
+    SELECT id, "ownerId" FROM "Software" WHERE slug = ${params.slug} LIMIT 1
+  `;
+  const pkg = rows[0];
   if (!pkg) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (pkg.ownerId !== session!.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });

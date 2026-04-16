@@ -1,28 +1,79 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { ECOSYSTEM_LABELS, BADGE_LABELS, SEVERITY_COLORS, formatDate } from "@/lib/utils";
+import { Prisma } from "@prisma/client";
+import { ECOSYSTEM_LABELS, SEVERITY_COLORS, formatDate } from "@/lib/utils";
 import { SeverityRow } from "@/components/severity-badge";
-import { Award, ExternalLink, Package, User } from "lucide-react";
+import { Award, ExternalLink, Package, User, Globe } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function SoftwareDetailPage({ params }: { params: { slug: string } }) {
-  const pkg = await prisma.software.findUnique({
-    where: { slug: params.slug },
-    include: {
-      owner: {
-        select: { id: true, name: true, type: true, logoUrl: true, badges: true },
-      },
-      versions: {
-        include: { cveCache: { orderBy: { cvssScore: "desc" } } },
-        orderBy: { createdAt: "desc" },
-      },
-    },
-  });
+  // Raw SQL — stale Prisma client rejects NULL ownerId during ORM deserialization.
+  type SoftwareRow = {
+    id: string; ownerId: string | null; name: string; slug: string;
+    description: string | null; ecosystem: string; repoUrl: string | null;
+  };
+  const pkgRows = await prisma.$queryRaw<SoftwareRow[]>`
+    SELECT id, "ownerId", name, slug, description, ecosystem, "repoUrl"
+    FROM   "Software" WHERE slug = ${params.slug} LIMIT 1
+  `;
+  const pkgRow = pkgRows[0];
+  if (!pkgRow) notFound();
 
-  if (!pkg) notFound();
+  // Fetch owner + their badges if package is claimed.
+  type OwnerRow = { id: string; name: string; type: string; logoUrl: string | null };
+  type BadgeRow = { id: string; badgeType: string; status: string };
+  const owner: OwnerRow | null = pkgRow.ownerId
+    ? (await prisma.user.findUnique({
+        where: { id: pkgRow.ownerId },
+        select: { id: true, name: true, type: true, logoUrl: true },
+      })) ?? null
+    : null;
+  const ownerBadges: BadgeRow[] = pkgRow.ownerId
+    ? await prisma.badge.findMany({
+        where: { userId: pkgRow.ownerId },
+        select: { id: true, badgeType: true, status: true },
+      })
+    : [];
 
-  const approvedBadges = pkg.owner.badges.filter((b) => b.status === "APPROVED");
+  // Fetch versions + CVE cache.
+  type VersionRow = { id: string; version: string; releasedAt: Date | null; changelog: string | null; createdAt: Date };
+  type CveRow = { id: string; cveId: string; severity: string; cvssScore: number | null; description: string | null };
+
+  const versions = await prisma.$queryRaw<VersionRow[]>(
+    Prisma.sql`
+      SELECT id, version, "releasedAt", changelog, "createdAt"
+      FROM   "SoftwareVersion"
+      WHERE  "softwareId" = ${pkgRow.id}
+      ORDER  BY "createdAt" DESC
+    `
+  );
+
+  const cveRows: CveRow[] = versions.length > 0
+    ? await prisma.$queryRaw<CveRow[]>(
+        Prisma.sql`
+          SELECT id, "softwareVersionId", "cveId", severity, "cvssScore", description
+          FROM   "CveCache"
+          WHERE  "softwareVersionId" IN (${Prisma.join(versions.map((v) => v.id))})
+          ORDER  BY "cvssScore" DESC
+        `
+      )
+    : [];
+
+  const cveByVersion = new Map<string, CveRow[]>();
+  for (const c of cveRows) {
+    const svId = (c as any).softwareVersionId as string;
+    if (!cveByVersion.has(svId)) cveByVersion.set(svId, []);
+    cveByVersion.get(svId)!.push(c);
+  }
+
+  const pkg = {
+    ...pkgRow,
+    owner,
+    versions: versions.map((v) => ({ ...v, cveCache: cveByVersion.get(v.id) ?? [] })),
+  };
+
+  const approvedBadges = ownerBadges.filter((b) => b.status === "APPROVED");
 
 
   return (
@@ -39,10 +90,17 @@ export default async function SoftwareDetailPage({ params }: { params: { slug: s
           </div>
           {pkg.description && <p className="text-muted-foreground mt-2">{pkg.description}</p>}
           <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
-            <Link href={`/profile/${pkg.owner.id}`} className="hover:text-foreground flex items-center gap-1">
-              <User className="h-3.5 w-3.5" />
-              {pkg.owner.name}
-            </Link>
+            {pkg.owner ? (
+              <Link href={`/profile/${pkg.owner.id}`} className="hover:text-foreground flex items-center gap-1">
+                <User className="h-3.5 w-3.5" />
+                {pkg.owner.name}
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1">
+                <Globe className="h-3.5 w-3.5" />
+                Community package — <Link href="/software/new" className="underline hover:text-foreground">claim as vendor</Link>
+              </span>
+            )}
             {pkg.repoUrl && (
               <a href={pkg.repoUrl} target="_blank" rel="noopener noreferrer" className="hover:text-foreground flex items-center gap-1">
                 <ExternalLink className="h-3.5 w-3.5" />
