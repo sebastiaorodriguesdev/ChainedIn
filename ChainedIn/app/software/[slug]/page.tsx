@@ -30,8 +30,8 @@ export default async function SoftwareDetailPage({ params }: { params: { slug: s
       })) ?? null
     : null;
   const ownerBadges: BadgeRow[] = pkgRow.ownerId
-    ? await prisma.badge.findMany({
-        where: { userId: pkgRow.ownerId },
+    ? await prisma.badgeRequest.findMany({
+        where: { userId: pkgRow.ownerId, status: "APPROVED" },
         select: { id: true, badgeType: true, status: true },
       })
     : [];

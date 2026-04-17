@@ -1,6 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth } from "@/auth";
-import { Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/sign-out-button";
 import { SearchBar } from "@/components/search-bar";
@@ -11,9 +11,8 @@ export async function Nav() {
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40">
       <div className="container mx-auto px-4 flex h-14 items-center gap-4">
-        <Link href="/" className="flex items-center gap-2 font-bold text-lg shrink-0">
-          <Shield className="h-5 w-5 text-primary" />
-          ChainedIn
+        <Link href="/" className="shrink-0">
+          <Image src="/logo-wide.png" alt="Stacurity" width={130} height={43} priority />
         </Link>
 
         {/* Global search with autocomplete */}

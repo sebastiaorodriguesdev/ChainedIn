@@ -186,33 +186,36 @@ function ResultView({
 
   const config = {
     "not-in-scope": {
-      icon: <XCircle className="h-6 w-6 text-gray-500" />,
+      icon: <XCircle className="h-6 w-6" style={{ color: "#6b7280" }} />,
       badge: "Not in scope",
-      color: "border-gray-300 bg-gray-50",
-      badgeClass: "bg-gray-100 text-gray-700",
+      color: "",
+      badgeStyle: { backgroundColor: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db" },
+      cardStyle: { borderColor: "#d1d5db", backgroundColor: "#f9fafb" },
     },
     important: {
-      icon: <AlertTriangle className="h-6 w-6 text-yellow-600" />,
+      icon: <AlertTriangle className="h-6 w-6" style={{ color: "#D58600" }} />,
       badge: "Important Entity",
-      color: "border-yellow-300 bg-yellow-50",
-      badgeClass: "bg-yellow-100 text-yellow-800",
+      color: "",
+      badgeStyle: { backgroundColor: "#FFF5E2", color: "#D58600", border: "1px solid #D58600" },
+      cardStyle: { borderColor: "#D58600", backgroundColor: "#FFF5E2" },
     },
     essential: {
-      icon: <CheckCircle2 className="h-6 w-6 text-red-600" />,
+      icon: <AlertTriangle className="h-6 w-6" style={{ color: "#F00013" }} />,
       badge: "Essential Entity",
-      color: "border-red-300 bg-red-50",
-      badgeClass: "bg-red-100 text-red-800",
+      color: "",
+      badgeStyle: { backgroundColor: "#FFF3F3", color: "#F00013", border: "1px solid #F00013" },
+      cardStyle: { borderColor: "#F00013", backgroundColor: "#FFF3F3" },
     },
   }[verdict];
 
   return (
     <div className="space-y-4">
       {/* Verdict */}
-      <Card className={`border-2 ${config.color}`}>
+      <Card className="border-2" style={config.cardStyle}>
         <CardContent className="py-5">
           <div className="flex items-center gap-3 mb-3">
             {config.icon}
-            <span className={`rounded-full px-3 py-1 text-sm font-semibold ${config.badgeClass}`}>
+            <span className="rounded-full px-3 py-1 text-sm font-semibold" style={config.badgeStyle}>
               {config.badge}
             </span>
             {saving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-auto" />}

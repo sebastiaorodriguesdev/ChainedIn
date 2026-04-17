@@ -41,17 +41,17 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-3xl">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border bg-muted px-4 py-1.5 text-sm font-medium text-muted-foreground">
             <Shield className="h-4 w-4" />
-            Cyber Trust Network
+            Supply chain security, verified
           </div>
           <h1 className="mb-6 text-5xl font-bold tracking-tight">
-            Know exactly which dependencies are safe to use
+            Prove you&apos;re secure.<br />Verify before you sign.
           </h1>
-          <p className="mb-10 text-xl text-muted-foreground">
-            ChainedIn connects CVE vulnerability data to software releases so you can instantly see which versions are safe, build trusted stacks, and verify compliance credentials.
+          <p className="mb-10 text-xl text-muted-foreground max-w-2xl mx-auto">
+            Supply chain attacks doubled last year. Stacurity is where software companies prove their security posture — and where buyers verify it before committing.
           </p>
           <div className="flex justify-center gap-4">
             <Link href="/register">
-              <Button size="lg">Start building</Button>
+              <Button size="lg">Get on the platform</Button>
             </Link>
             <Link href="#how">
               <Button variant="outline" size="lg">How it works</Button>
@@ -65,7 +65,7 @@ export default async function LandingPage() {
         <div className="container mx-auto px-4 py-20">
           <h2 className="mb-4 text-center text-3xl font-bold">How it works</h2>
           <p className="mb-14 text-center text-muted-foreground max-w-xl mx-auto">
-            Whether you publish software or depend on it, ChainedIn gives you the full picture.
+            Whether you publish software or depend on it, Stacurity gives you the full picture.
           </p>
 
           <div className="flex flex-col gap-10 max-w-5xl mx-auto">
@@ -120,15 +120,15 @@ export default async function LandingPage() {
               {/* Text */}
               <div className="p-8 md:p-10 flex flex-col justify-center">
                 <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">For software suppliers</p>
-                <h3 className="text-2xl font-bold mb-4">Your software, proven secure</h3>
+                <h3 className="text-2xl font-bold mb-4">Stand out on security</h3>
                 <p className="text-muted-foreground mb-6 text-sm">
-                  Publish your packages, get a live Trust Score, and let buyers see exactly how safe every release is — before they integrate it.
+                  Get a live trust score, display verified certifications, and give buyers the proof they need — before they even get on a call.
                 </p>
                 <ul className="space-y-3">
                   {[
-                    "List packages and version history in minutes",
-                    "CVE overlay from NIST NVD shows which versions are safe",
-                    "Earn ISO 27001, NIS2, SOC 2 badges — admin-verified, publicly displayed",
+                    "Publish packages and track CVE status per version",
+                    "Earn verified ISO 27001, NIS2, SOC 2 and GDPR badges",
+                    "Turn security into a commercial advantage",
                   ].map(item => (
                     <li key={item} className="flex items-start gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
@@ -143,16 +143,16 @@ export default async function LandingPage() {
             <div className="rounded-2xl border bg-card overflow-hidden grid md:grid-cols-2">
               {/* Text */}
               <div className="p-8 md:p-10 flex flex-col justify-center">
-                <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">For engineering teams</p>
-                <h3 className="text-2xl font-bold mb-4">Secure by design, maintained by sight</h3>
+                <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">For buyers &amp; engineering teams</p>
+                <h3 className="text-2xl font-bold mb-4">Verify before you depend on it</h3>
                 <p className="text-muted-foreground mb-6 text-sm">
-                  Map your dependency graph and instantly see where your supply chain is exposed. Color-coded CVE severity means no guesswork.
+                  95% of the average codebase is someone else&apos;s software. Map your supply chain, spot the weak links, and stop trusting PDFs nobody reads.
                 </p>
                 <ul className="space-y-3">
                   {[
-                    "Visual canvas: drag, connect, and organise your full stack",
-                    "Every node shows real-time CVE status — green to critical",
-                    "Spot weak links before they become incidents",
+                    "Visual dependency canvas — see your full supply chain",
+                    "Real-time CVE status on every node, green to critical",
+                    "Check any vendor's score and certifications in seconds",
                   ].map(item => (
                     <li key={item} className="flex items-start gap-2 text-sm">
                       <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
@@ -220,7 +220,7 @@ export default async function LandingPage() {
             <div className="text-center mb-10">
               <h2 className="text-3xl font-bold mb-2">Top-rated software suppliers</h2>
               <p className="text-muted-foreground max-w-xl mx-auto">
-                Browse companies publishing software on ChainedIn, ranked by Trust Score — a measure of CVE cleanliness, patch speed, and compliance certifications.
+                Companies on Stacurity, ranked by Trust Score — a live measure of CVE cleanliness, patch speed, and verified compliance certifications.
               </p>
             </div>
 
@@ -294,9 +294,9 @@ export default async function LandingPage() {
         <div className="container mx-auto px-4 py-16">
           <div className="grid md:grid-cols-2 gap-10 items-center max-w-4xl mx-auto">
             <div>
-              <h2 className="text-2xl font-bold mb-3">Visualise your stack</h2>
+              <h2 className="text-2xl font-bold mb-3">See your supply chain clearly</h2>
               <p className="text-muted-foreground mb-6">
-                Map every dependency. See your supply chain&apos;s CVE exposure at a glance. Know exactly where to act before something breaks in production.
+                Map every dependency. One weak link is all it takes — Stacurity shows you where it is before it becomes an incident.
               </p>
               <Link href="/stacks">
                 <Button>
@@ -338,13 +338,13 @@ export default async function LandingPage() {
       {/* ── Showcase your software CTA ── */}
       <section className="border-t">
         <div className="container mx-auto px-4 py-16 text-center">
-          <h2 className="text-2xl font-bold mb-3">Showcase your software</h2>
+          <h2 className="text-2xl font-bold mb-3">If you&apos;re not on Stacurity, buyers will notice</h2>
           <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
-            Register your packages, link CVE data, earn compliance badges. Build trust with every release — and let buyers see your security posture before they depend on you.
+            Once buyers check Stacurity before signing contracts, vendors have a commercial reason to be on it. Build your verified profile today.
           </p>
           <Link href={session?.user ? "/software/new" : "/register"}>
             <Button size="lg">
-              {session?.user ? "Add your software" : "Get started free"}
+              {session?.user ? "Add your software" : "Get on the platform"}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
@@ -355,8 +355,8 @@ export default async function LandingPage() {
       {!session?.user && (
         <section className="border-t bg-muted/30">
           <div className="container mx-auto px-4 py-16 text-center">
-            <h2 className="mb-4 text-2xl font-bold">Ready to build trusted software?</h2>
-            <p className="mb-8 text-muted-foreground">Join the platform and make dependency security visible.</p>
+            <h2 className="mb-4 text-2xl font-bold">Turn security into your competitive advantage</h2>
+            <p className="mb-8 text-muted-foreground">Join Stacurity and make your security posture publicly verifiable.</p>
             <Link href="/register">
               <Button size="lg">Create your profile</Button>
             </Link>

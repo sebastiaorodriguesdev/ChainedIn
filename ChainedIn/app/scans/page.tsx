@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/utils";
 import { getRiskLevelLabel, getPlainSummary } from "@/lib/scan-plain-language";
 import { ShieldCheck, ShieldAlert, Clock, ChevronRight, GitBranch } from "lucide-react";
+import { CopyButton } from "@/components/copy-button";
 
 interface ScanListItem {
   id: string;
@@ -59,7 +60,10 @@ export default async function ScansPage() {
                 <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
                   Run the ChainedIn scanner on your project and upload the results using your API key.
                 </p>
-                <div className="mt-4 bg-muted rounded-md px-4 py-3 text-left max-w-md mx-auto text-xs font-mono">
+                <div className="mt-4 bg-muted rounded-md px-4 py-3 text-left max-w-md mx-auto text-xs font-mono relative">
+                  <div className="absolute top-2 right-2">
+                    <CopyButton text={`pip install chainedIn\nchainedIn scan . --upload --api-key YOUR_KEY`} />
+                  </div>
                   <p className="text-muted-foreground mb-1"># Install &amp; scan</p>
                   <p>pip install chainedIn</p>
                   <p>chainedIn scan . --upload --api-key YOUR_KEY</p>

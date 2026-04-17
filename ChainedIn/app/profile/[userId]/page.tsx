@@ -4,8 +4,17 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { BADGE_LABELS, ECOSYSTEM_LABELS, SEVERITY_COLORS, formatDate, worstSeverity } from "@/lib/utils";
 import { computeTrustScore } from "@/lib/trust-score";
-import { Award, Building2, User, ExternalLink, Package, ShieldCheck } from "lucide-react";
+import { Award, Building2, User, ExternalLink, Package, ShieldCheck, BadgeCheck, CalendarCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+
+// Certification metadata: renewal period in years + display colour
+const CERT_META: Record<string, { years: number; accent: string; bg: string; border: string }> = {
+  ISO27001: { years: 3, accent: "#00A63D", bg: "#DAFFEF", border: "#00A63D" },
+  SOC2:     { years: 1, accent: "#0065F4", bg: "#EAF0FE", border: "#0065F4" },
+  GDPR:     { years: 2, accent: "#D58600", bg: "#FFF5E2", border: "#D58600" },
+  NIS2:     { years: 2, accent: "#00A63D", bg: "#DAFFEF", border: "#00A63D" },
+  PCI_DSS:  { years: 1, accent: "#0065F4", bg: "#EAF0FE", border: "#0065F4" },
+};
 
 export default async function ProfilePage({ params }: { params: { userId: string } }) {
   const user = await prisma.user.findUnique({
@@ -70,9 +79,9 @@ export default async function ProfilePage({ params }: { params: { userId: string
             <span>Member since {formatDate(user.createdAt)}</span>
           </div>
 
-          {/* Vendor score */}
-          {trustScore && (
-            <div className="mt-4 flex items-center gap-3">
+          {/* Trust score + compact badge chips */}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {trustScore && (
               <div
                 className="flex items-center gap-2 rounded-lg border px-4 py-2"
                 style={{ borderColor: trustScore.color, backgroundColor: trustScore.color + "12" }}
@@ -86,34 +95,100 @@ export default async function ProfilePage({ params }: { params: { userId: string
                     <span className="text-sm text-muted-foreground">/ 100</span>
                   </div>
                   <p className="text-xs font-medium" style={{ color: trustScore.color }}>
-                    {trustScore.grade} vendor score
+                    {trustScore.grade} trust score
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground max-w-xs">
-                Based on CVE severity across all published software versions.
-              </p>
-            </div>
-          )}
-
-          {/* Approved badges */}
-          {user.badges.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {user.badges.map((b) => (
+            )}
+            {user.badges.map((b) => {
+              const meta = CERT_META[b.badgeType];
+              return (
                 <div
                   key={b.id}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-sm font-medium text-green-800"
-                  title={`Verified ${BADGE_LABELS[b.badgeType] ?? b.badgeType}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold"
+                  style={{ borderColor: meta?.border ?? "#00A63D", color: meta?.accent ?? "#00A63D", backgroundColor: meta?.bg ?? "#DAFFEF" }}
                 >
-                  <Award className="h-3.5 w-3.5" />
+                  <BadgeCheck className="h-3.5 w-3.5" />
                   {BADGE_LABELS[b.badgeType] ?? b.badgeType}
-                  <span className="text-green-600 text-xs">✓</span>
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
       </div>
+
+      {/* Certifications section */}
+      {isCompany && user.badges.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold mb-3 flex items-center gap-2">
+            <Award className="h-5 w-5" />
+            Compliance Certifications
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {user.badges.map((b) => {
+              const meta = CERT_META[b.badgeType] ?? { years: 1, accent: "#00A63D", bg: "#DAFFEF", border: "#00A63D" };
+              const approvedMs = b.resolvedAt ? Number(b.resolvedAt) : Date.now();
+              const approvedDate = new Date(approvedMs);
+              const expiryDate = new Date(approvedMs);
+              expiryDate.setFullYear(expiryDate.getFullYear() + meta.years);
+              const now = Date.now();
+              const daysLeft = Math.ceil((expiryDate.getTime() - now) / 86400000);
+              const isExpired = daysLeft < 0;
+              const isExpiringSoon = !isExpired && daysLeft <= 90;
+
+              return (
+                <div
+                  key={b.id}
+                  className="rounded-xl border-2 p-4 flex flex-col gap-2"
+                  style={{ borderColor: meta.border, backgroundColor: meta.bg }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <BadgeCheck className="h-5 w-5 shrink-0" style={{ color: meta.accent }} />
+                      <span className="font-bold text-sm" style={{ color: meta.accent }}>
+                        {BADGE_LABELS[b.badgeType] ?? b.badgeType}
+                      </span>
+                    </div>
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-wide rounded-full px-2 py-0.5"
+                      style={{
+                        backgroundColor: isExpired ? "#FFF3F3" : "#DAFFEF",
+                        color: isExpired ? "#F00013" : "#00A63D",
+                        border: `1px solid ${isExpired ? "#F00013" : "#00A63D"}`,
+                      }}
+                    >
+                      {isExpired ? "Expired" : "Active"}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1 text-xs text-gray-600">
+                    <div className="flex items-center gap-1.5">
+                      <CalendarCheck className="h-3.5 w-3.5 shrink-0" style={{ color: meta.accent }} />
+                      <span>
+                        Certified <span className="font-medium">{approvedDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CalendarCheck className="h-3.5 w-3.5 shrink-0 opacity-50" style={{ color: meta.accent }} />
+                      <span>
+                        Valid until{" "}
+                        <span className={`font-medium ${isExpiringSoon ? "text-orange-600" : ""} ${isExpired ? "text-red-600" : ""}`}>
+                          {expiryDate.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        </span>
+                        {!isExpired && (
+                          <span className="ml-1 text-[10px] opacity-70">
+                            ({daysLeft}d left)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Software packages */}
       <section>

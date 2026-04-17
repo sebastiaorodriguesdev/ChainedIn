@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Lexend } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/nav";
 import { DevSwitcher } from "@/components/dev-switcher";
 import { auth } from "@/auth";
 import { SessionProvider } from "next-auth/react";
 
-const inter = Inter({ subsets: ["latin"] });
+const lexend = Lexend({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ChainedIn — Cyber Trust Network",
-  description: "Track software vulnerabilities and build trusted dependency stacks",
+  title: "Stacurity — Cyber Trust Network",
+  description: "The platform where software companies prove they are secure — and where buyers can verify it before they commit.",
 };
 
 export default async function RootLayout({
@@ -22,7 +22,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={lexend.className}>
         <SessionProvider session={session}>
           <Nav />
           {children}

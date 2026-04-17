@@ -49,7 +49,7 @@ export default function PartnerDirectory({ title, subtitle, partners }: Props) {
                       <p className="text-sm mt-2">{p.description}</p>
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {p.specialties.map((s) => (
-                          <span key={s} className="text-xs bg-muted rounded-full px-2.5 py-0.5 font-medium">
+                          <span key={s} className="text-xs rounded-full px-2.5 py-0.5 font-medium border" style={{ backgroundColor: "#DAFFEF", color: "#00A63D", borderColor: "#00A63D" }}>
                             {s}
                           </span>
                         ))}

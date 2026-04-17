@@ -40,12 +40,19 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Brand palette
+        brand: {
+          green: { bg: "#DAFFEF", border: "#00A63D" },
+          orange: { bg: "#FFF5E2", border: "#D58600" },
+          red: { bg: "#FFF3F3", border: "#F00013" },
+          blue: { bg: "#EAF0FE", border: "#0065F4" },
+        },
         severity: {
-          critical: "#dc2626",
-          high: "#ea580c",
+          critical: "#F00013",
+          high: "#D58600",
           medium: "#ca8a04",
-          low: "#2563eb",
-          none: "#16a34a",
+          low: "#0065F4",
+          none: "#00A63D",
         },
       },
       borderRadius: {
