@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, Package, GitBranch, Award, Settings, ShieldCheck, ScanLine, Trophy } from "lucide-react";
+import { LayoutDashboard, Package, GitBranch, Award, Settings, ShieldCheck, ScanLine, Trophy, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { href: "/software/new", label: "Add Software", icon: Package },
   { href: "/stacks", label: "My Stacks", icon: GitBranch },
   { href: "/scans", label: "Security Scans", icon: ScanLine },
+  { href: "/nis2", label: "NIS2 Compliance", icon: ClipboardCheck },
   { href: "/vendors", label: "Vendor Scores", icon: Trophy },
   { href: "/badges", label: "Badges", icon: Award },
   { href: "/settings", label: "Settings", icon: Settings },

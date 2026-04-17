@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const m = require\\('C:/Users/spart/Desktop/ChainedIn/ChainedIn/node_modules/@anthropic-ai/claude-code'\\); console.log\\(Object.keys\\(m\\).join\\(', '\\)\\)\")",
+      "Bash(rm -rf \"C:/Users/spart/Desktop/ChainedIn/ChainedIn/app/api/nis2\")",
+      "Bash(npm uninstall *)",
+      "Bash(npx prisma *)"
+    ]
+  }
+}

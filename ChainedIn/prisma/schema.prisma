@@ -25,6 +25,7 @@ model User {
   badges       BadgeRequest[]
   stacks       Stack[]
   scanReports  ScanReport[]
+  nis2Result   Nis2Result?
 }
 
 // ─── SOFTWARE ─────────────────────────────────────────────────────────────────
@@ -157,4 +158,16 @@ model ScanReport {
   stack Stack? @relation(fields: [stackId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+}
+
+// ─── NIS2 ASSESSMENT ──────────────────────────────────────────────────────────
+
+model Nis2Result {
+  id      String   @id @default(cuid())
+  userId  String   @unique
+  verdict String   // not-in-scope | important | essential
+  answers String   // JSON blob
+  savedAt DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
